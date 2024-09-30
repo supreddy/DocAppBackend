@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Google Slides OAuth Demo</title>
+</head>
+
+<body>
+    <h1>Google Slides OAuth Demo</h1>
+    <button onclick="initiateOAuth2Flow()">Login with Google</button>
+
+    <script>
+        async function initiateOAuth2Flow() {
+            const clientId = '1026739460310-455aa8bcbb3tkmbo1bavbh7e1gs4d71j.apps.googleusercontent.com'; // Replace with your Client ID
+            const redirectUri = 'http://localhost:5000';
+            const scope = 'https://www.googleapis.com/auth/presentations';
+            const state = generateRandomString(16);
+
+            // Generate code verifier and challenge for PKCE
+            const codeVerifier = generateRandomString(128);
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+            // Store codeVerifier and state in session storage to use them later
+            sessionStorage.setItem('code_verifier', codeVerifier);
+            sessionStorage.setItem('state', state);
+
+            const authorizationUrl = `https://accounts.google.com/o/oauth2/v2/auth` +
+                `?response_type=code` +
+                `&client_id=${encodeURIComponent(clientId)}` +
+                `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                `&scope=${encodeURIComponent(scope)}` +
+                `&code_challenge=${encodeURIComponent(codeChallenge)}` +
+                `&code_challenge_method=S256` +
+                `&state=${encodeURIComponent(state)}`;
+
+            // Redirect the user to Google's OAuth 2.0 server
+            window.location.href = authorizationUrl;
+        }
+
+        function generateRandomString(length) {
+            const array = new Uint8Array(length);
+            window.crypto.getRandomValues(array);
+            return Array.from(array, dec => ('0' + dec.toString(16)).substr(-2)).join('');
+        }
+
+        async function generateCodeChallenge(codeVerifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            return btoa(String.fromCharCode(...new Uint8Array(digest)))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        }
+
+        // Handle the OAuth2 callback
+        window.onload = function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const storedState = sessionStorage.getItem('state');
+
+            if (code && state === storedState) {
+                // Remove state from session storage
+                sessionStorage.removeItem('state');
+
+                const codeVerifier = sessionStorage.getItem('code_verifier');
+                sessionStorage.removeItem('code_verifier');
+
+                // Send the authorization code and code verifier to the backend
+                fetch('/exchange-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        code_verifier: codeVerifier,
+                        redirect_uri: 'http://localhost:5000'
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert('Presentation created successfully!');
+                        } else {
+                            alert('Error creating presentation.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+        };
+    </script>
+</body>
+
+</html>

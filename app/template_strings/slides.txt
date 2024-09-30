@@ -1,0 +1,73 @@
+"""
+Given the following input source_text and instruction and a lesson template, create a JSON representation of a PowerPoint slide. The JSON should include the following fields:
+
+- `title`: The main title of the slide, which should be clear and concise.
+- `subtitle`: A brief subtitle or additional context for the slide (if available), helping to set the stage for the content.
+- `sections`: An array where each element contains:
+  - `heading`: The heading of the section, formatted to grab attention and highlight the main topic.
+  - `content`: The main content or bullet points under the section, written in a way that is engaging and easy to understand for undergraduate medical students.
+- `visual_aids`: Suggestions for visual aids, such as images, diagrams, or charts, that would enhance understanding and keep the students engaged.
+- `interactive_elements`: Ideas for interactive elements, like questions or prompts, that doctors can use to involve the students during the presentation.
+- `metadata`: Additional metadata including:
+  - `source`: The origin or reference of the content.
+  - `keywords`: Relevant keywords associated with the slide.
+the content should be designed to be informative yet engaging, suitable for an educational environment where it will be used as a teaching aid by doctors for undergraduate medical students. The tone should be accessible, and the content should be broken down into manageable, easy-to-understand sections.
+
+
+### Expected Output (JSON):
+
+{
+  "title": "Vesiculo-Bullous Disorders",
+  "subtitle": "Group of skin diseases with blistering as a primary event",
+  "sections": [
+    {
+      "heading": "Definitions",
+      "content": [
+        "Vesicle: Visible accumulation of fluid which is <0.5cm in size.",
+        "Bulla: Visible accumulation of fluid which is >0.5cm in size."
+      ]
+    },
+    {
+      "heading": "Classification",
+      "content": [
+        "Intra epidermal: Pemphigus vulgaris, Pemphigus foliaceus",
+        "Sub epidermal: Bullous pemphigoid, Epidermolysis bullosa"
+      ]
+    },
+    {
+      "heading": "Treatment",
+      "content": [
+        "Systemic Steroids: Mainstay of treatment, 1.5-2 mg/kg/day",
+        "Anti Metabolites: Azathioprine, Cyclophosphamide"
+      ]
+    }
+  ],
+  "visual_aids": [
+    "Diagrams showing different types of blistering",
+    "Flowchart of treatment protocols"
+  ],
+  "interactive_elements": [
+    "Quiz on the types of vesiculo-bullous disorders",
+    "Discussion prompts on treatment strategies"
+  ],
+  "metadata": {
+    "source": "Vesiculo-Bullous Disorders Textbook, Chapter 5",
+    "keywords": ["Vesicle", "Bulla", "Pemphigus", "Bullous Pemphigoid"]
+  }
+}
+
+
+Please adhere to this JSON structure in your response."
+
+### sources below
+{source_text}
+
+### instruction below
+{instruction}
+
+### template for the lesson below
+{lesson_template}
+
+
+ """
+ 

@@ -1,0 +1,13 @@
+chroma_db/
+chroma.log
+.ipynb_checkpoints
+.vscode
+__pycache__
+record_manager_cache.sql
+.env
+chapters_md
+chapters_pdf
+files
+Scripts/
+Lib/
+Include/
