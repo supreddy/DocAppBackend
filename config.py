@@ -6,4 +6,4 @@ CHUNK_SIZE = 1500
 UPLOADS_FOLDER="../server/uploads"
 BASE_PATH="../server"
 SERVER_URL="http://localhost:5000"
-PDF_FILES_FOLDER="~/files/"
+PDF_FILES_FOLDER="~/DocAppBackend/files/"

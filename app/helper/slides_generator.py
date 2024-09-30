@@ -1,4 +1,5 @@
 # slides_generator.py
+import os
 from fastapi import  HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
@@ -10,7 +11,8 @@ import uuid
 
 # Configure the Google Slides API client
 SCOPES = ['https://www.googleapis.com/auth/presentations', 'https://www.googleapis.com/auth/drive']
-SERVICE_ACCOUNT_FILE = './helper/service_account.json'
+# SERVICE_ACCOUNT_FILE = './helper/service_account.json'
+SERVICE_ACCOUNT_FILE = os.path.expanduser("~/DocAppBackend/app/helper/service_account.json") 
 
 credentials = service_account.Credentials.from_service_account_file(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES)

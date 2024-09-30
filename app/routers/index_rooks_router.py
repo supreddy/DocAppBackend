@@ -91,7 +91,14 @@ def get_toc_json_from_pdf(pdf_file):
     set_to_pages(root, doc.page_count)
 
     toc_json = [node.to_dict() for node in root]
-    return json.dumps(toc_json, indent=4)
+
+     # Set the 'to' pages for each TOC entry
+    set_to_pages(root, doc.page_count)
+
+    toc_json = [node.to_dict() for node in root]
+   
+    return toc_json
+   
 
 def set_to_pages(toc_root, total_pages):
     """
