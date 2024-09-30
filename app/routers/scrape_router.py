@@ -25,7 +25,7 @@ prompt = ChatPromptTemplate.from_messages(
         ("human", "{text_to_summarize}"),
     ]
 )
-api_key = "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"
+
 llm = ChatOpenAI(
     model="gpt-3.5-turbo-0125",
     temperature=0,
