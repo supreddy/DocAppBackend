@@ -11,3 +11,4 @@ files
 Scripts/
 Lib/
 Include/
+app/helper/service_account.json
