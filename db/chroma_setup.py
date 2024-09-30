@@ -1,10 +1,14 @@
 import chromadb
 from  dotenv import load_dotenv
- 
-from config import DB_NAME, DB_IP, DB_PORT
+
 import os
+from config import DB_NAME
+from dotenv import load_dotenv
+
 load_dotenv()
 
+DB_IP = os.getenv('DB_IP')
+DB_PORT = os.getenv('DB_PORT')
  
 
 async def setup_chroma(is_reset=False):

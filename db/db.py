@@ -1,11 +1,17 @@
 # db.py
 import chromadb
 from chromadb import Settings
-from config import DB_NAME, DB_PORT, DB_IP
 from langchain_community.vectorstores import Chroma
 
 from langchain_openai import OpenAIEmbeddings
 import os
+from config import DB_NAME
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DB_IP = os.getenv('DB_IP')
+DB_PORT = os.getenv('DB_PORT')
 
 os.environ['ALLOW_RESET'] = 'True'
  
