@@ -32,7 +32,7 @@ llm = ChatOpenAI(
     max_tokens=None,
     timeout=None,
     max_retries=2,
-    #api_key=api_key,  # if you prefer to pass api key in directly instaed of using env vars
+    # api_key = "",  # if you prefer to pass api key in directly instaed of using env vars
     # base_url="...",
     # organization="...",
     # other params...
