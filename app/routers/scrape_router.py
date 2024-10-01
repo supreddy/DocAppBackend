@@ -12,7 +12,12 @@ from crawl4ai.extraction_strategy import *
 from crawl4ai.crawler_strategy import * 
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import StrOutputParser
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # code to summarize links
 
 from langchain_core.prompts import ChatPromptTemplate

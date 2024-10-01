@@ -13,3 +13,4 @@ Lib/
 Include/
 app/helper/service_account.json
 backend-MR.code-workspace
+app/test.db

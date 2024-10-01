@@ -13,7 +13,7 @@ from langchain.indexes import SQLRecordManager, index
 from langchain.schema import Document  # Import the Document schema
 from config import DB_NAME
 from db.db import get_LC_chroma_client
-
+from typing import Optional
  
 
 # embeddings = CohereEmbeddings(model="embed-english-light-v3.0")
@@ -83,24 +83,29 @@ async def process_files(folder_path="../../files", processed_files_path="../../f
        
     except Exception as e:
         print('Error processing files:', e)
+        
 
-def process_text_and_index(text: str, source_id: str = "manual_text_input",file_name:str=""):
+def process_text_and_index(text: str, source_id: str = "manual_text_input", file_name: str = "") -> Optional[dict]:
     """
     Process a block of text, split it into chunks, and index the content to the vector database.
     
     :param text: The block of text to be processed and indexed.
     :param source_id: An identifier for the source of the text.
+    :param file_name: The name of the file being processed.
+    :return: Response from the indexing operation or None if an error occurred.
     """
-  
-    splitterLocal =  RecursiveCharacterTextSplitter(
-                chunk_size=2000,
-                chunk_overlap=1000,
-                length_function=len,
-                keep_separator=True
-            )
+    print(f"Processing text for indexing. Source ID: {source_id}, File Name: {file_name}")
+    
+    splitterLocal = RecursiveCharacterTextSplitter(
+        chunk_size=2000,
+        chunk_overlap=1000,
+        length_function=len,
+        keep_separator=True
+    )
+    
     try:
         # Wrap the text in a Document object
-        doc = Document(page_content=text, metadata={"source": source_id,"file_name":file_name})
+        doc = Document(page_content=text, metadata={"source": source_id, "file_name": file_name})
         
         # Split the text into chunks
         docs = splitterLocal.split_documents([doc])
@@ -108,23 +113,33 @@ def process_text_and_index(text: str, source_id: str = "manual_text_input",file_
         print(f"Document count after splitting: {len(docs)}")
         
         # Initialize Chroma client and record manager if not already initialized
-        langchain_chroma = get_LC_chroma_client()
-        print(langchain_chroma._collection);
+        try:
+            langchain_chroma = get_LC_chroma_client()
+            print(f"Chroma client initialized successfully.")
+        except Exception as e:
+            print(f"Error initializing Chroma client: {e}")
+            return None
+        
         # Index the documents into the vector database
-        response = index(
-            docs,
-            record_manager,
-            langchain_chroma,
-            cleanup="incremental",
-            source_id_key="source",
-        )
-
-        print(response) 
-        print("Text successfully indexed.")
-        return response
+        try:
+            response = index(
+                docs,
+                record_manager,
+                langchain_chroma,
+                cleanup="incremental",
+                source_id_key="source",
+            )
+            print("Indexing response:", response) 
+            print("Text successfully indexed.")
+            return response
+        except Exception as e:
+            print(f"Error during indexing: {e}")
+            return None
     except Exception as e:
         print(f"Error processing text: {e}")
         return None
+    
+
 
 def read_processed_files(file_path):
     try:
