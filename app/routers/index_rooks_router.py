@@ -229,7 +229,7 @@ async def process_pdf_chapters(request: PDFProcessingRequest):
     if not toc_json:
         raise HTTPException(status_code=400, detail="Failed to extract TOC from PDF.")
 
-    toc_json = toc_json_str)
+    
     chapter_count = 0
 
     # Function to extract chapters using regex and TOC
