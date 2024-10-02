@@ -5,11 +5,9 @@ from fastapi.responses import JSONResponse
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from typing import AsyncGenerator
-from crawl4ai import WebCrawler
+
 from starlette.responses import StreamingResponse
-from crawl4ai.chunking_strategy import * 
-from crawl4ai.extraction_strategy import * 
-from crawl4ai.crawler_strategy import * 
+
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import StrOutputParser
 import os
@@ -42,7 +40,6 @@ llm = ChatOpenAI(
     # organization="...",
     # other params...
 )
-
 chain = prompt | llm | StrOutputParser()
 # Define the request body model
 class CrawlRequest(BaseModel):

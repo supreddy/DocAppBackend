@@ -2,10 +2,18 @@ import chromadb
 import pandas as pd
 import streamlit as st
 import os
-from config import DB_NAME, DB_PORT, DB_IP
+from config import DB_NAME
 from langchain_community.vectorstores import Chroma
+DB_IP = os.getenv('DB_IP')
+DB_PORT = os.getenv('DB_PORT')
+LOCALHOST_URL = os.getenv('LOCALHOST_URL')
+LOCALHOST_PORT = os.getenv('LOCALHOST_PORT')
+
+
 def get_data():
-    chroma_client = chromadb.HttpClient(host=DB_IP, port=DB_PORT)
+    # chroma_client = chromadb.HttpClient(host=DB_IP, port=DB_PORT)
+    chroma_client = chromadb.HttpClient(host=LOCALHOST_URL, port=LOCALHOST_PORT)
+
     collection = chroma_client.get_collection(name='research-base')
     data = collection.get()
     return {

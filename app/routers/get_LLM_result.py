@@ -1,14 +1,13 @@
 # text_processor.py
 import os
 from langchain_core.output_parsers import StrOutputParser
-import chromadb
+ 
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-from app.helper.template_loader import get_template_by_type
-
-from langchain.prompts import PromptTemplate
+ 
+ 
 
 
 # code to summarize link

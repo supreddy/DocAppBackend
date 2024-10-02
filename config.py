@@ -7,3 +7,5 @@ SERVER_URL="http://localhost:5000"
 PDF_FILES_FOLDER="~/DocAppBackend/files/"
 # Azure Blob storage credentials
 ACCOUNT_URL="https://docappstore.blob.core.windows.net"
+
+

@@ -1,3 +1,4 @@
+import os
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
