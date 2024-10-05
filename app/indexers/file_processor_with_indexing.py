@@ -85,34 +85,45 @@ async def process_files(folder_path="../../files", processed_files_path="../../f
         print('Error processing files:', e)
         
 
-def process_text_and_index(text: str, source_id: str = "manual_text_input", file_name: str = "") -> Optional[dict]:
+def process_text_and_index(text: str, source_id: str = "manual_text_input", file_name: str = "", metadata: dict = None) -> Optional[dict]:
     """
-    Process a block of text, split it into chunks, and index the content to the vector database.
+    Process a large block of text, split it into chunks, and index the content to the vector database.
     
     :param text: The block of text to be processed and indexed.
     :param source_id: An identifier for the source of the text.
     :param file_name: The name of the file being processed.
+    :param metadata: Additional metadata to be included with each chunk.
     :return: Response from the indexing operation or None if an error occurred.
     """
     print(f"Processing text for indexing. Source ID: {source_id}, File Name: {file_name}")
     
-    splitterLocal = RecursiveCharacterTextSplitter(
+    splitter = RecursiveCharacterTextSplitter(
         chunk_size=2000,
-        chunk_overlap=1000,
+        chunk_overlap=200,
         length_function=len,
-        keep_separator=True
+        add_start_index=True,
     )
     
     try:
-        # Wrap the text in a Document object
-        doc = Document(page_content=text, metadata={"source": source_id, "file_name": file_name})
+        # Prepare metadata
+        base_metadata = {
+            "source": source_id,
+            "file_name": file_name
+        }
+        if metadata:
+            base_metadata.update(metadata)
         
         # Split the text into chunks
-        docs = splitterLocal.split_documents([doc])
+        chunks = splitter.create_documents([text], metadatas=[base_metadata])
         
-        print(f"Document count after splitting: {len(docs)}")
+        # Add chunk-specific metadata
+        for i, chunk in enumerate(chunks):
+            chunk.metadata["chunk_id"] = i
+            chunk.metadata["total_chunks"] = len(chunks)
         
-        # Initialize Chroma client and record manager if not already initialized
+        print(f"Document count after splitting: {len(chunks)}")
+        
+        # Initialize Chroma client
         try:
             langchain_chroma = get_LC_chroma_client()
             print(f"Chroma client initialized successfully.")
@@ -120,10 +131,17 @@ def process_text_and_index(text: str, source_id: str = "manual_text_input", file
             print(f"Error initializing Chroma client: {e}")
             return None
         
+        # Initialize record manager
+        record_manager = SQLRecordManager(
+            f"chromadb/{langchain_chroma._collection.name}",
+            db_url="sqlite:///record_manager_cache.sql"
+        )
+        record_manager.create_schema()
+        
         # Index the documents into the vector database
         try:
             response = index(
-                docs,
+                chunks,
                 record_manager,
                 langchain_chroma,
                 cleanup="incremental",
