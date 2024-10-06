@@ -264,7 +264,7 @@ async def process_pdf_chapters(request: PDFProcessingRequest):
         to_page = entry['to_page']
         subsections = entry.get('subsections', [])
 
-        print(f"Processing Chapter {chapter_count + 1}: '{chapter_title}' from page {from_page} to {to_page}...")
+        print(f"Processing item {chapter_count + 1}: '{chapter_title}' from page {from_page} to {to_page}...")
 
         if from_page > to_page:
             print(f"Invalid page range: Chapter '{chapter_title}' has from_page {from_page} > to_page {to_page}")

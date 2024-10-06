@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.routers import scrape_router, post_sources_router,message_router 
 from app.routers import get_sources_router,index_rooks_router,toc_router, delete_sources_router,delete_Id_VS_router,get_slide_router, upload_router, files_router,extract_text_router
+from app.routers import upload_to_storage_router
 from db import chroma_setup
 from app.helper.websocket_connections import active_websockets
 from fastapi.responses import JSONResponse
@@ -74,6 +75,7 @@ app.include_router(extract_text_router.router)
 app.include_router(delete_Id_VS_router.router)
 app.include_router(index_rooks_router.router)
 app.include_router(toc_router.router)
+app.include_router(upload_to_storage_router.router)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

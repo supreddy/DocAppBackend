@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from typing import List
@@ -10,7 +11,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from sentence_transformers import CrossEncoder
-
+from langchain_community.document_transformers import (
+    LongContextReorder,
+)
 from db.db import get_LC_chroma_client
 
 # code to break down leaning objectives and match documents
@@ -214,22 +217,24 @@ def doc_to_dict(doc):
         "metadata": doc.metadata,  # Include metadata in the dictionary
     }
 
-
-
-def get_results(part,threshold=0.5):
+ 
+ 
+def get_results(part, threshold=0.5):
     """
     Retrieves relevant documents for the given part using LC_chroma_client, scores them using a CrossEncoder,
-    filters those with scores above 1, and prints the sorted results.
+    filters those with scores above the threshold or if their source is a web URL,
+    sorts the filtered documents by score, and returns them.
 
     :param part: The part of the competency to search for relevant documents.
-    :return: A list of relevant documents with scores greater than 1, and the count of such documents.
+    :param threshold: The score threshold for filtering relevant documents.
+    :return: A list of relevant documents sorted by score and their count.
     """
     # Initialize LC_chroma_client and the retriever
     LC_chroma_client = get_LC_chroma_client()  # Ensure get_LC_chroma_client is defined and returns a valid client
-    retriever = LC_chroma_client.as_retriever(search_kwargs={"k": 10})
+    retriever = LC_chroma_client.as_retriever(search_kwargs={"k": 20})
     
     # Retrieve relevant documents
-    relevant_docs = retriever.get_relevant_documents(part)
+    relevant_docs = retriever.invoke(part)
     
     # Initialize the CrossEncoder for scoring
     cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
@@ -237,27 +242,35 @@ def get_results(part,threshold=0.5):
     # Prepare pairs of (part, page_content) for scoring
     pairs = []
     for doc in relevant_docs:
-        page_content = doc.page_content# Accessing the document's content
+        page_content = doc.page_content  # Accessing the document's content
         pairs.append([part, page_content])
     
     # Score the pairs
     scores = cross_encoder.predict(pairs)
     
-    # Filter documents with scores greater than 1
+    # Function to check if a source is a web URL
+    def is_web_url(source):
+        return bool(re.match(r'https?://', source))
+
+    # Filter documents with scores greater than the threshold or if their source is a web URL (with score > 0)
     relevant_by_score = [
-        doc for score, doc in zip(scores, relevant_docs) if score > threshold
+        (score, doc) for score, doc in zip(scores, relevant_docs)
+        if score > threshold or (is_web_url(doc.metadata.get("source", "")) and score > 0)
     ]
+    
+    # Sort the filtered documents by score in descending order
+    relevant_by_score.sort(key=lambda x: x[0], reverse=True)
     
     # Print scores for verification
     print(f"\nFor part '{part}':")
-    for i, (score, doc) in enumerate(zip(scores, relevant_docs), start=1):
-        if score > threshold:
-            print(f"  Document {i} score is {score:.4f} (Relevant)")
-        else:
-            print(f"  Document {i} score is {score:.4f} (Not Relevant)")
+    for i, (score, doc) in enumerate(relevant_by_score, start=1):
+        source_is_web_url = is_web_url(doc.metadata.get("source", ""))
+        print(f"  Document {i}  score is {score:.4f} (Relevant - {'Web URL' if source_is_web_url else 'Score'})")
     
-    # Return the filtered relevant documents and their count
-    return relevant_by_score, len(relevant_by_score)
+    # Return only the documents (after sorting), and their count
+    return [doc for score, doc in relevant_by_score], len(relevant_by_score)
+
+
 
 
 @router.get("/refresh-search")

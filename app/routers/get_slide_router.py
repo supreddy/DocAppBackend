@@ -8,7 +8,9 @@ from typing import List
 from langchain_core.output_parsers import StrOutputParser
 
 from langchain_core.prompts import ChatPromptTemplate
-
+from langchain_community.document_transformers import (
+    LongContextReorder,
+)
 from app.helper import slides_generator
 from config import PDF_FILES_FOLDER
 
@@ -79,13 +81,13 @@ def create_slide_prompt() -> ChatPromptTemplate:
                     "- Questions based on Bloom's Taxonomy to test higher-order thinking (analysis, synthesis, and evaluation).\n"
                     "\n"
                     "The output should include four types of content:\n"
-                    "1. **Slides**: Foundational knowledge organized with headings and bullet points.\n"
+                    "1. **Slides**: Foundational knowledge organized with headings and bullet points. Stick to the topic while generating the slides even if content found is minimal            \n"
                     "2. **Quiz**: Challenging Jeopardy-style MCQs with indirect descriptions in the answers and plausible distractors.\n"
                     "3. **Case-based Questions**: Real-world clinical scenarios requiring application and analysis.\n"
                     "4. **Bloom's Levels**: Higher-order thinking questions to test analysis, evaluation, and synthesis of the material.\n"
                     "\n"
                     "Each section should be nested under a specific key in a JSON structure:\n"
-                    "- **Slides** key: Contains the content with headings and bullet points.\n"
+                    "- **Slides** key: Contains the content with headings and bullet points.Pay attention to the order of the slides, the more a heading is relevant to the topic the earlier the silde should appear \n"
                     "- **Quiz** key: Contains Jeopardy-style MCQs with indirect descriptions and challenging distractors.\n"
                     "- **Case-based** key: Contains clinical cases where students apply their knowledge to diagnose or treat patients.\n"
                     "- **Bloom's** key: Contains questions targeting higher levels of cognitive ability.\n"
@@ -183,6 +185,8 @@ router = APIRouter(
     tags=["content"],
     responses={404: {"description": "Not found"}},
 )
+
+
 llm = ChatOpenAI(
     model="gpt-3.5-turbo-0125",
     temperature=0,

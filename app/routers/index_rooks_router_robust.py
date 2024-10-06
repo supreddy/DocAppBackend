@@ -382,7 +382,7 @@ async def process_pdf_chapters(request: PDFProcessingRequest):
         from_page = chapter['from_page']
         to_page = chapter['to_page']
 
-        print(f"Processing Chapter {chapter_count + 1}: '{chapter_title}' from page {from_page} to {to_page}...")
+        print(f"Processing item {chapter_count + 1}: '{chapter_title}' from page {from_page} to {to_page}...")
 
         if from_page is None or to_page is None:
             print(f"Invalid page range: Chapter '{chapter_title}' has undefined page range")
