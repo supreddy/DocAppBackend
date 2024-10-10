@@ -249,6 +249,7 @@ async def recalculate_part_details(part_name: str, augmented_info: str = ""):
 
     augmented_part = {
         "name": part_name,
+        "augmented_info":augmented_info,
         "relevant_docs": relevant_docs,
         "links": [search_link]
     }
