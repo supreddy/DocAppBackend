@@ -40,7 +40,7 @@ llm = ChatOpenAI(
 )
 files_folder = "files"
 
-llm_prompt = (
+prompt = (
             "Given the following text-content, extract and structure the information into JSON format with the following structure:\\n"
             "- **Main Topic:** The overarching subject of the content.\\n"
             "- **competencies:** Each distinct subtopic should be identified and listed under \"Subtopics.\" For each competency, include:\\n"
@@ -81,7 +81,7 @@ prompt2 = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            llm_prompt
+            prompt
         ),
         ("human", "text content :{content}"),
     ]
@@ -145,11 +145,10 @@ def extract_text_from_pdf(file_path):
 
 
 
-def get_response_from_LLM(content,prompt_template):
-    """
-    Calls the LLM to extract structured information based on the content.
-    """
-   
+
+def get_response_from_LLM(content, prompt_template):
+
+ 
      # Combine the prompt and the LLM into a chain
     chain = prompt_template | llm | StrOutputParser()
     
@@ -158,98 +157,144 @@ def get_response_from_LLM(content,prompt_template):
     
     # Convert the LLM result from JSON string to a dictionary
     llm_result_dict = json.loads(result)
-    # Augment the LLM response
+
+    # Augment the LLM result with additional details
     augmented_result = augment_llm_result_with_details(llm_result_dict)
 
-    return json.dumps(augmented_result, indent=2)
+    # Serialize the augmented result to a JSON-formatted string
+    json_result = json.dumps(augmented_result, indent=2)
 
+    # Return the JSON string
+    return json_result
 
 def augment_llm_result_with_details(llm_result):
     """
-    Augments the LLM result by adding additional details such as relevant documents and search link.
+    Augments the LLM result by adding additional details to each part, such as
+    the list of relevant documents (with scores greater than a configurable threshold) and a search link.
+
+    :param llm_result: A dictionary containing the LLM's JSON response.
+    :return: The augmented LLM result with additional details.
     """
+    # Iterate over each competency in the 'competencies' list
     for competency in llm_result.get('competencies', []):
         for index, part in enumerate(competency.get('parts', [])):
-            # Get relevant documents and scores
-            relevant_docs_with_scores, relevant_count = get_results(part)
+            # Get relevant documents for the current part and count those with scores > threshold
+            relevant_docs, relevant_count = get_results(part)
 
-          # Use doc_to_dict to convert each document and score into a consistent dictionary format
-            relevant_docs = [doc_to_dict(doc, score) for score, doc in relevant_docs_with_scores]
+            # Convert any non-serializable objects in relevant_docs to dictionaries
+            relevant_docs = [doc_to_dict(doc) for doc in relevant_docs]
 
+            # Construct the search link
             search_link = f"https://pubmed.ncbi.nlm.nih.gov/?term={part.replace(' ', '+')}"
+
+            # Augment the part with additional details
             augmented_part = {
                 "name": part,
-                "relevant_docs": relevant_docs,
+                "relevant_docs": relevant_docs,  # Use the list of relevant documents
                 "links": [search_link]
             }
+
+            # Replace the original part with the augmented part
             competency['parts'][index] = augmented_part
 
     return llm_result
 
 
+def doc_to_dict(doc):
+    """
+    Converts a document object into a dictionary for JSON serialization, extracting plain text from HTML content.
+    
+    :param doc: The document object.
+    :return: A dictionary representation of the document with plain text extracted from HTML content.
+    """
+    # Extract plain text from the HTML content
+    soup = BeautifulSoup(doc.page_content, 'html.parser')
+    plain_text = soup.get_text(strip=True)  # Extract and clean the text
+    
+    return {
+       
+        "page_content": plain_text,  # Replace HTML content with extracted plain text
+        "metadata": doc.metadata,  # Include metadata in the dictionary
+    }
+
+ 
+ 
 def get_results(part, threshold=0.5):
     """
-    Retrieves relevant documents and scores for a given part.
+    Retrieves relevant documents for the given part using LC_chroma_client, scores them using a CrossEncoder,
+    filters those with scores above the threshold or if their source is a web URL,
+    sorts the filtered documents by score, and returns them.
+
+    :param part: The part of the competency to search for relevant documents.
+    :param threshold: The score threshold for filtering relevant documents.
+    :return: A list of relevant documents sorted by score and their count.
     """
-    LC_chroma_client = get_LC_chroma_client()
+    # Initialize LC_chroma_client and the retriever
+    LC_chroma_client = get_LC_chroma_client()  # Ensure get_LC_chroma_client is defined and returns a valid client
     retriever = LC_chroma_client.as_retriever(search_kwargs={"k": 20})
-
+    
+    # Retrieve relevant documents
     relevant_docs = retriever.invoke(part)
+    
+    # Initialize the CrossEncoder for scoring
     cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-
-    pairs = [[part, doc.page_content] for doc in relevant_docs]
+    
+    # Prepare pairs of (part, page_content) for scoring
+    pairs = []
+    for doc in relevant_docs:
+        page_content = doc.page_content  # Accessing the document's content
+        pairs.append([part, page_content])
+    
+    # Score the pairs
     scores = cross_encoder.predict(pairs)
-
+    
+    # Function to check if a source is a web URL
     def is_web_url(source):
         return bool(re.match(r'https?://', source))
 
+    # Filter documents with scores greater than the threshold or if their source is a web URL (with score > 0)
     relevant_by_score = [
-        (float(score), doc) for score, doc in zip(scores, relevant_docs)
-        if score > threshold or (is_web_url(doc.metadata.get("source", "")) and score > -5)
+        (score, doc) for score, doc in zip(scores, relevant_docs)
+        if score > threshold or (is_web_url(doc.metadata.get("source", "")) and score > 0)
     ]
-
+    
+    # Sort the filtered documents by score in descending order
     relevant_by_score.sort(key=lambda x: x[0], reverse=True)
-
+    
     # Print scores for verification
     print(f"\nFor part '{part}':")
     for i, (score, doc) in enumerate(relevant_by_score, start=1):
         source_is_web_url = is_web_url(doc.metadata.get("source", ""))
         print(f"  Document {i}  score is {score:.4f} (Relevant - {'Web URL' if source_is_web_url else 'Score'})")
- 
-    return relevant_by_score, len(relevant_by_score)
+    
+    # Return only the documents (after sorting), and their count
+    return [doc for score, doc in relevant_by_score], len(relevant_by_score)
 
 
-def doc_to_dict(doc, score):
-    """
-    Converts a document object to a dictionary, including the score.
-    """
-    if isinstance(doc.page_content, str):
-        soup = BeautifulSoup(doc.page_content, 'html.parser')
-        plain_text = soup.get_text(strip=True)
-    else:
-        plain_text = doc.page_content
-
-    return {
-        "page_content": plain_text,
-        "metadata": doc.metadata,
-        "score": float(score)
-    }
 
 
 @router.get("/refresh-search")
-async def recalculate_part_details(part_name: str, augmented_info: str = ""):
+async def recalculate_part_details(part_name: str):
     """
-    Recalculates the score and retrieves relevant documents for a part.
+    Recalculates the score and finds relevant documents for a given part.
+    
+    :param part_name: The name of the part to process.
+    :param threshold: The score threshold for considering a document relevant.
+    :return: An augmented part object with relevant documents and search link.
     """
-    info_to_use = augmented_info if augmented_info.strip() else part_name
-    relevant_docs_with_scores, relevant_count = get_results(info_to_use)
+    # Get relevant documents for the current part and count those with scores > threshold
+    relevant_docs, relevant_count = get_results(part_name)
 
-    relevant_docs = [doc_to_dict(doc, score) for score, doc in relevant_docs_with_scores]
+    # Convert any non-serializable objects in relevant_docs to dictionaries
+    relevant_docs = [doc_to_dict(doc) for doc in relevant_docs]
+
+    # Construct the search link
     search_link = f"https://pubmed.ncbi.nlm.nih.gov/?term={part_name.replace(' ', '+')}"
 
+    # Augment the part with additional details
     augmented_part = {
         "name": part_name,
-        "relevant_docs": relevant_docs,
+        "relevant_docs": relevant_docs,  # Use the list of relevant documents
         "links": [search_link]
     }
 
