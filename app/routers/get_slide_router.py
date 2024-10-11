@@ -81,16 +81,19 @@ def create_slide_prompt() -> ChatPromptTemplate:
                     "- Questions based on Bloom's Taxonomy to test higher-order thinking (analysis, synthesis, and evaluation).\n"
                     "\n"
                     "The output should include four types of content:\n"
-                    "1. **Slides**: Foundational knowledge organized with headings and bullet points. Stick to the topic while generating the slides even if content found is minimal            \n"
+                    "1. **Slides**: Foundational knowledge organized with headings and bullet points. Stick to the topic while generating the slides even if content found is minimal. No Need to intro the genrenal and overall topic as these slides will be part of an overall deck but introduce the main theme of {{topic}}," 
+                    "for example fir a topic 'Different clinical types of scabies' you dont need to introduce Scabies unless the topic itself has it for eg: Etiological agent of scabies, in which case have an introduction slide \n"
                     "2. **Quiz**: Challenging Jeopardy-style MCQs with indirect descriptions in the answers and plausible distractors.\n"
                     "3. **Case-based Questions**: Real-world clinical scenarios requiring application and analysis.\n"
                     "4. **Bloom's Levels**: Higher-order thinking questions to test analysis, evaluation, and synthesis of the material.\n"
+                    "5. **Summary**: Summary of the main key points of the topic as a paragraph maximizing the semantic value.\n"
                     "\n"
                     "Each section should be nested under a specific key in a JSON structure:\n"
                     "- **Slides** key: Contains the content with headings and bullet points.Pay attention to the order of the slides, the more a heading is relevant to the topic the earlier the silde should appear \n"
                     "- **Quiz** key: Contains Jeopardy-style MCQs with indirect descriptions and challenging distractors.\n"
                     "- **Case-based** key: Contains clinical cases where students apply their knowledge to diagnose or treat patients.\n"
                     "- **Bloom's** key: Contains questions targeting higher levels of cognitive ability.\n"
+                    "- **Summary** key: Contains a summary of the entire content in upto 300 words .\n"
                     "\n"
                     "Format the output in the following JSON structure:\n"
                     "\n"
@@ -174,7 +177,10 @@ def create_slide_prompt() -> ChatPromptTemplate:
                     '            "level": "Evaluation",\n'
                     '            "question": "<Provide an evaluation-level question that tests judgment or decision-making>"\n'
                     '        }}\n'
-                    '    ]\n'
+                    '    ],\n'
+                    '    "summary": {{\n'
+                    '        "text": "<Summarize the main key points as a paragraph that maximizes semantic value>"\n'
+                    '    }}\n'
                     '}}\n'
                 )
     return prompt_text
