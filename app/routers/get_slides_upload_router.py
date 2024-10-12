@@ -39,6 +39,7 @@ async def combined_api(
      
 
         presentation_url = await slides_generator.create_presentation(json.loads(content_result))
+        # to do pass  upload_result['azure_blob_urls'] to the function create_presentation above to use in creating the ppt
 
         # Output the presentation URL
         print(presentation_url)
