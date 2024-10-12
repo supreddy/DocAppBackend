@@ -211,8 +211,8 @@ class ContentRequest(BaseModel):
 
 filePath= os.path.expanduser("~/backend-MR/app/helper/credentials.json")
 filePath2= os.path.expanduser("~/backend-MR/app/helper/input.json")
-chrome_path = '/mnt/c/Program Files/Google/Chrome/Application/chrome.exe'
-webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path))
+# chrome_path = '/mnt/c/Program Files/Google/Chrome/Application/chrome.exe'
+# webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path))
 
 # POST endpoint to process the content
 @router.post("/")
@@ -234,11 +234,11 @@ async def get_llm_response(request: ContentRequest):
             "formatted_content":formatted_content , "topic":request.subtopic
         })
         print(json_result)
-        # Call the create_presentation function from slides_generator
-        presentation_url = await slides_generator.create_presentation(json.loads(json_result))
+        # # Call the create_presentation function from slides_generator
+        # presentation_url = await slides_generator.create_presentation(json.loads(json_result))
 
-        # Output the presentation URL
-        print(presentation_url)
+        # # Output the presentation URL
+        # print(presentation_url)
         # Return some dummy response
         return json_result
          

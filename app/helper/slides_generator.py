@@ -74,7 +74,7 @@ def create_slide_requests(slide_data):
 
     return requests
 
-async def create_presentation(slides_input: Dict[str, Any]):
+async def create_presentation(content_input: Dict[str, Any]):
     try:
         # Create a new presentation
         presentation = slides_service.presentations().create(body={}).execute()
@@ -82,7 +82,7 @@ async def create_presentation(slides_input: Dict[str, Any]):
 
         # Create requests for all slides
         requests = []
-        for index, slide in enumerate(slides_input['slides']):
+        for index, slide in enumerate(content_input['slides']):
             requests.extend(create_slide_requests(slide))
 
         # Execute the requests
@@ -104,7 +104,7 @@ async def create_presentation(slides_input: Dict[str, Any]):
 
         return {
             "presentation_id": presentation_id, 
-            "slides_created": len(slides_input['slides']),
+            "slides_created": len(content_input['slides']),
             "public_url": presentation_url
         }
 
