@@ -7,7 +7,7 @@ import chromadb
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import numpy as np
 from langchain_community.embeddings import CohereEmbeddings
-from langchain_experimental.text_splitter import SemanticChunker
+# from langchain_experimental.text_splitter import SemanticChunker
 from config import DB_NAME as collection_name
 from langchain.indexes import SQLRecordManager, index
 from langchain.schema import Document  # Import the Document schema
