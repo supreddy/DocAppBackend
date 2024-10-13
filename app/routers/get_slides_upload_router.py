@@ -1,11 +1,12 @@
 import os
 import asyncio
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form
-from typing import List
-from .get_slide_router import create_slide_prompt, get_llm_response
+from typing import List,Optional
+from .get_slide_router import ContentRequest, get_llm_response
 from .upload_to_storage_router import upload_to_azure, update_or_insert_subtopic
 from pydantic import BaseModel
 from app.helper import slides_generator
+from app.helper import prompts
 import json
 router = APIRouter(
     prefix="/get-slide-upload",
@@ -14,40 +15,40 @@ router = APIRouter(
 )
 
 # Pydantic model for the request body (for LLM)
-class SlideRequest(BaseModel):
-    subtopic: str
-    text_content: List[str]
+ 
 
 @router.post("/")
 async def combined_api(
     subtopic_name: str = Form(...),
-    files: List[UploadFile] = File(...),
-    description: str = Form(...),
+    files: Optional[List[UploadFile]] = File(None),  # Make file upload optional
+    description: Optional[str] = Form(None),         # Description is also optional
     text_content: List[str] = Form(...)
 ):
     try:
         # Define the file paths folder
         files_folder = os.path.expanduser("~/slide-uploads")
         
-        # Run both operations in parallel using asyncio.gather()
+        # Task to generate slides
         slide_task = generate_slides(text_content, subtopic_name)
-        upload_task = upload_files_to_azure(files, files_folder, description, subtopic_name)
         
-        # Wait for both tasks to completeD
-        content_result, upload_result = await asyncio.gather(slide_task, upload_task)
+        # Task to upload files, only if files are provided
+        if files:
+            upload_task = upload_files_to_azure(files, files_folder, description, subtopic_name)
+            content_result, upload_result = await asyncio.gather(slide_task, upload_task)
+        else:
+            content_result = await slide_task
+            upload_result = {"azure_blob_urls": []}  # No uploaded images if files are empty
 
-     
-
+        # Generate presentation, adding content to the generator
         presentation_url = await slides_generator.create_presentation(json.loads(content_result))
-        # to do pass  upload_result['azure_blob_urls'] to the function create_presentation above to use in creating the ppt
 
-        # Output the presentation URL
-        print(presentation_url)
-        # Return some dummy response
-        # Combine results into a single response
+        # If upload_result['azure_blob_urls'] is needed in the presentation, pass them here
+
+        # Return the combined result with the presentation URL
         return {
             "content": content_result,
-            "images": upload_result['azure_blob_urls']
+            "images": upload_result['azure_blob_urls'],  # May be empty if no files were uploaded
+            "presentation_url": presentation_url
         }
 
     except Exception as e:
@@ -60,7 +61,7 @@ async def generate_slides(text_content: List[str], subtopic_name: str):
     """
     # Simulating the content preparation and LLM API call
     formatted_content = "\n".join(f"- {line}" for line in text_content)
-    result = await get_llm_response(SlideRequest(subtopic=subtopic_name, text_content=text_content))
+    result = await get_llm_response(ContentRequest(subtopic=subtopic_name, text_content=text_content,isSummarySlide=False))
     return result
 
 

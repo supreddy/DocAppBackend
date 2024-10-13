@@ -45,6 +45,7 @@ class SourceSchema(BaseModel):
     title: str
     summary: str = None
     text: str = None  # New field to accept the block of text
+    type:str
 
 class SourceSchemaOutput(BaseModel):
     id: int
@@ -62,8 +63,11 @@ class SourcesOutput(BaseModel):
 def add_sources(input_data: SourcesInput):
     sources = input_data.sources
     for source in sources:
-        add_source_to_db(title=str(source.title), summary=source.summary, text=source.text)
-        process_text_and_index(source.text,source.title)    
+        add_source_to_db(title=str(source.title), summary=source.summary, text=source.text,type=source.type)
+         
+        # Only call process_text_and_index if type is not 'image'
+        if source.type.lower() != "image":
+            process_text_and_index(source.text, source.title)
     return {"status": "Sources added successfully "}
 
 

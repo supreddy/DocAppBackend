@@ -74,6 +74,7 @@ app.include_router(delete_Id_VS_router.router)
 app.include_router(index_rooks_router.router)
 app.include_router(toc_router.router)
 
+app.include_router(get_slide_router.router)
 app.include_router(get_slides_upload_router.router)
 
 @app.websocket("/ws")
