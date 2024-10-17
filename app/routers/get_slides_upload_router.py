@@ -7,7 +7,7 @@ from typing import List, Optional
 from .get_slide_router import ContentRequest, get_llm_response
 from .upload_to_storage_router import upload_to_azure, update_or_insert_subtopic
 from pydantic import BaseModel
-from app.helper import slides_generator
+from app.helper import slides_generator_alternate
 from app.helper import prompts
 import json
 
@@ -56,7 +56,7 @@ async def combined_api(
             content_result = await slide_task
 
         # Generate presentation, adding content to the generator
-        presentation_url = await slides_generator.create_presentation(content_input=json.loads(content_result), image_urls= image_urls)
+        presentation_url = await slides_generator_alternate.create_presentation(content_input=json.loads(content_result), image_urls= image_urls)
         # Return the combined result with the presentation URL
         return {
             "content": content_result,
