@@ -80,13 +80,13 @@ async def create_presentation(content_input: Dict[str, Any], image_urls: List[st
         # Create title slide
         title_slide_requests, title_slide_id, _, _ = create_slide_requests({'title': content_input['slides'][0]['title'], 'content': []}, 0)
         requests.extend(title_slide_requests)
-        slide_data.append((title_slide_id, content_input['slides'][0]['title'], None))
+        slide_data.append((title_slide_id, content_input['slides'][0]['title'], None, True))  # True indicates it's a title slide
 
         # Create a slide for each heading
         for index, content_item in enumerate(content_input['slides'][0]['content'], start=1):
             slide_requests, slide_id, _, _ = create_slide_requests({'title': content_item['heading'], 'content': [content_item]}, index)
             requests.extend(slide_requests)
-            slide_data.append((slide_id, content_item['heading'], [content_item]))
+            slide_data.append((slide_id, content_item['heading'], [content_item], False))  # False indicates it's not a title slide
 
         # Execute the requests to create slides
         try:
@@ -99,10 +99,10 @@ async def create_presentation(content_input: Dict[str, Any], image_urls: List[st
             logger.error(f"Error details: {api_error.error_details}")
             raise HTTPException(status_code=500, detail=f"Google Slides API error: {str(api_error)}")
 
-        # Update text and add images
-        text_requests = []
-        image_requests = []
-        for index, (slide_id, title, content) in enumerate(slide_data):
+        # Clear existing content and add new content
+        content_requests = []
+        image_index = 0
+        for index, (slide_id, title, content, is_title_slide) in enumerate(slide_data):
             logger.debug(f"Processing slide {index + 1} with ID: {slide_id}")
             
             # Get the slide
@@ -111,145 +111,157 @@ async def create_presentation(content_input: Dict[str, Any], image_urls: List[st
                 pageObjectId=slide_id
             ).execute()
 
-            # Find the title and body placeholders
-            title_id = None
-            body_id = None
+            # Remove all existing elements from the slide
             for element in slide.get('pageElements', []):
-                if element['shape']['shapeType'] == 'TEXT_BOX':
-                    if element['shape']['placeholder']['type'] == 'TITLE':
-                        title_id = element['objectId']
-                    elif element['shape']['placeholder']['type'] == 'BODY':
-                        body_id = element['objectId']
-            
-            logger.debug(f"Title ID: {title_id}, Body ID: {body_id}")
-
-            # Add requests to update text
-            if title_id:
-                text_requests.extend([
-                    {
-                        'insertText': {
-                            'objectId': title_id,
-                            'insertionIndex': 0,
-                            'text': title
-                        }
-                    },
-                    {
-                        'updateTextStyle': {
-                            'objectId': title_id,
-                            'style': {
-                                'fontSize': {'magnitude': 24, 'unit': 'PT'},
-                                'foregroundColor': {'opaqueColor': {'rgbColor': {'red': 0.2, 'green': 0.2, 'blue': 0.2}}},
-                                'bold': True
-                            },
-                            'textRange': {'type': 'ALL'},
-                            'fields': 'fontSize,foregroundColor,bold'
-                        }
-                    },
-                    {
-                        'updateShapeProperties': {
-                            'objectId': title_id,
-                            'shapeProperties': {
-                                'shapeBackgroundFill': {
-                                    'solidFill': {
-                                        'color': {
-                                            'rgbColor': {'red': 0.9, 'green': 0.9, 'blue': 1}
-                                        }
-                                    }
-                                }
-                            },
-                            'fields': 'shapeBackgroundFill.solidFill.color'
-                        }
+                content_requests.append({
+                    'deleteObject': {
+                        'objectId': element['objectId']
                     }
-                ])
-                logger.debug(f"Added title: {title}")
+                })
 
-            if body_id and content:
-                content_text = ""
-                for point in content[0]['bullet_points']:
-                    content_text += f"• {point}\n"
-
-                text_requests.extend([
-                    {
-                        'insertText': {
-                            'objectId': body_id,
-                            'insertionIndex': 0,
-                            'text': content_text.strip()
-                        }
-                    },
-                    {
-                        'updateTextStyle': {
-                            'objectId': body_id,
-                            'style': {
-                                'foregroundColor': {'opaqueColor': {'rgbColor': {'red': 1, 'green': 1, 'blue': 1}}},
-                                'fontSize': {'magnitude': 14, 'unit': 'PT'}
+            # Create a new text box for title
+            title_box_id = f'title_box_{index}'
+            content_requests.extend([
+                {
+                    'createShape': {
+                        'objectId': title_box_id,
+                        'shapeType': 'TEXT_BOX',
+                        'elementProperties': {
+                            'pageObjectId': slide_id,
+                            'size': {
+                                'width': {'magnitude': 720, 'unit': 'PT'},
+                                'height': {'magnitude': 50, 'unit': 'PT'}
                             },
-                            'textRange': {'type': 'ALL'},
-                            'fields': 'foregroundColor,fontSize'
-                        }
-                    },
-                    {
-                        'updateShapeProperties': {
-                            'objectId': body_id,
-                            'shapeProperties': {
-                                'shapeBackgroundFill': {
-                                    'solidFill': {
-                                        'color': {
-                                            'rgbColor': {'red': 0, 'green': 0, 'blue': 0.8}
-                                        }
-                                    }
-                                }
-                            },
-                            'fields': 'shapeBackgroundFill.solidFill.color'
-                        }
-                    }
-                ])
-                logger.debug(f"Added content: {content_text[:100]}...")
-
-            # Add image if available
-            if index > 0 and (index - 1) < len(image_urls) and image_urls[index - 1]:
-                image_id = f'image_{index - 1}'
-                image_requests.extend([
-                    {
-                        'createImage': {
-                            'objectId': image_id,
-                            'url': image_urls[index - 1],
-                            'elementProperties': {
-                                'pageObjectId': slide_id,
-                                'size': {
-                                    'width': {'magnitude': 300, 'unit': 'PT'},
-                                    'height': {'magnitude': 200, 'unit': 'PT'}
-                                },
-                                'transform': {
-                                    'scaleX': 1,
-                                    'scaleY': 1,
-                                    'translateX': 400,  # Right-aligned (720 - 300 - 20)
-                                    'translateY': 140,  # Centered vertically
-                                    'unit': 'PT'
-                                }
-                            }
-                        }
-                    },
-                    {
-                        'updatePageElementTransform': {
-                            'objectId': body_id,
-                            'applyMode': 'ABSOLUTE',
                             'transform': {
-                                'scaleX': 0.5,  # Scale text box to half width
+                                'scaleX': 1,
                                 'scaleY': 1,
-                                'translateX': 20,
-                                'translateY': 140,
+                                'translateX': 0,
+                                'translateY': 0,
                                 'unit': 'PT'
                             }
                         }
                     }
-                ])
-                logger.debug(f"Added image: {image_urls[index - 1]}")
+                },
+                {
+                    'insertText': {
+                        'objectId': title_box_id,
+                        'insertionIndex': 0,
+                        'text': title
+                    }
+                },
+                {
+                    'updateTextStyle': {
+                        'objectId': title_box_id,
+                        'style': {
+                            'fontSize': {'magnitude': 24, 'unit': 'PT'},
+                            'foregroundColor': {'opaqueColor': {'rgbColor': {'red': 0.2, 'green': 0.2, 'blue': 0.2}}},
+                            'bold': True
+                        },
+                        'textRange': {'type': 'ALL'},
+                        'fields': 'fontSize,foregroundColor,bold'
+                    }
+                }
+            ])
 
-        # Execute text update and image insertion requests
-        all_requests = text_requests + image_requests
-        if all_requests:
+            if not is_title_slide:
+                # Create a new text box for content
+                content_box_id = f'content_box_{index}'
+                content_requests.extend([
+                    {
+                        'createShape': {
+                            'objectId': content_box_id,
+                            'shapeType': 'TEXT_BOX',
+                            'elementProperties': {
+                                'pageObjectId': slide_id,
+                                'size': {
+                                    'width': {'magnitude': 340, 'unit': 'PT'},
+                                    'height': {'magnitude': 400, 'unit': 'PT'}
+                                },
+                                'transform': {
+                                    'scaleX': 1,
+                                    'scaleY': 1,
+                                    'translateX': 20,
+                                    'translateY': 70,
+                                    'unit': 'PT'
+                                }
+                            }
+                        }
+                    }
+                ])
+
+                if content:
+                    content_text = ""
+                    for item in content:
+                        for point in item['bullet_points']:
+                            content_text += f"• {point}\n"
+
+                    content_requests.extend([
+                        {
+                            'insertText': {
+                                'objectId': content_box_id,
+                                'insertionIndex': 0,
+                                'text': content_text
+                            }
+                        },
+                        {
+                            'updateTextStyle': {
+                                'objectId': content_box_id,
+                                'style': {
+                                    'foregroundColor': {'opaqueColor': {'rgbColor': {'red': 1, 'green': 1, 'blue': 1}}},
+                                    'fontSize': {'magnitude': 14, 'unit': 'PT'}
+                                },
+                                'textRange': {'type': 'ALL'},
+                                'fields': 'foregroundColor,fontSize'
+                            }
+                        },
+                        {
+                            'updateShapeProperties': {
+                                'objectId': content_box_id,
+                                'shapeProperties': {
+                                    'shapeBackgroundFill': {
+                                        'solidFill': {
+                                            'color': {
+                                                'rgbColor': {'red': 0, 'green': 0, 'blue': 0.8}
+                                            }
+                                        }
+                                    }
+                                },
+                                'fields': 'shapeBackgroundFill.solidFill.color'
+                            }
+                        }
+                    ])
+
+                # Add image if available
+                if image_index < len(image_urls) and image_urls[image_index]:
+                    image_id = f'image_{image_index}'
+                    content_requests.append({
+                        'createImage': {
+                            'objectId': image_id,
+                            'url': image_urls[image_index],
+                            'elementProperties': {
+                                'pageObjectId': slide_id,
+                                'size': {
+                                    'width': {'magnitude': 350, 'unit': 'PT'},
+                                    'height': {'magnitude': 262.5, 'unit': 'PT'}
+                                },
+                                'transform': {
+                                    'scaleX': 1,
+                                    'scaleY': 1,
+                                    'translateX': 360,
+                                    'translateY': 70,
+                                    'unit': 'PT'
+                                }
+                            }
+                        }
+                    })
+                    
+                    logger.debug(f"Added image: {image_urls[image_index]}")
+                    image_index += 1
+
+        # Execute content update and image insertion requests
+        if content_requests:
             try:
-                body = {'requests': all_requests}
+                body = {'requests': content_requests}
                 response = slides_service.presentations().batchUpdate(
                     presentationId=presentation_id, body=body).execute()
                 logger.debug("Successfully updated slides with text and images")
@@ -273,7 +285,7 @@ async def create_presentation(content_input: Dict[str, Any], image_urls: List[st
         return {
             "presentation_id": presentation_id, 
             "slides_created": len(slide_data),
-            "images_added": len([url for url in image_urls if url]),
+            "images_added": image_index,
             "public_url": presentation_url
         }
 
