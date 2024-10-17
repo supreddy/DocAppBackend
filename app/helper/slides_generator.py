@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Configure the Google Slides API client
 SCOPES = ['https://www.googleapis.com/auth/presentations', 'https://www.googleapis.com/auth/drive']
 # SERVICE_ACCOUNT_FILE = './helper/service_account.json'
-SERVICE_ACCOUNT_FILE = os.path.expanduser("./helper/service_account.json") 
+SERVICE_ACCOUNT_FILE = os.path.expanduser("~/DocAppBackend/app/helper/service_account.json") 
 
 credentials = service_account.Credentials.from_service_account_file(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES)
@@ -65,7 +65,9 @@ def split_content(content, max_chars_per_slide=250):
 
 
 
-async def create_presentation(content_input: Dict[str, Any], image_urls: List[str]):
+async def create_presentation(content_input: Dict[str, Any], image_urls: List[str] = None):
+    if image_urls is None:
+        image_urls = []  
     try:
         logger.debug(f"Received image_urls: {image_urls}")
         logger.debug(f"Received content_input: {content_input}")

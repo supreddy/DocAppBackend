@@ -45,6 +45,19 @@ def get_sources():
     sources = [{"id": row[0], "title": row[1], "summary": row[2], "text": row[3], "type": row[4]} for row in rows]
     return SourcesOutput(sources=sources)
 
+# GET endpoint to retrieve all records where type='image'
+@router.get("/images", response_model=SourcesOutput)
+def get_image_sources():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, summary, text, type FROM sources WHERE type = 'image' ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Convert rows to a list of SourceSchema dictionaries
+    sources = [{"id": row[0], "title": row[1], "summary": row[2], "text": row[3], "type": row[4]} for row in rows]
+    return SourcesOutput(sources=sources)
+
 # DELETE endpoint to delete a source by its ID
 @router.delete("/{source_id}")
 def delete_source(source_id: int):

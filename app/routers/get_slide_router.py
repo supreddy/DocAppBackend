@@ -45,7 +45,6 @@ class ContentRequest(BaseModel):
     subtopic: str
     text_content: List[str]
     is_summary_slide: Optional[bool] = False
-    image_urls: Optional[List[str]] = []  # Add this line
 
 # POST endpoint to process the content
 @router.post("/")
@@ -70,8 +69,8 @@ async def get_llm_response(request: ContentRequest):
         # Parse the JSON result
         content_json = json.loads(json_result)
         
-        # Generate presentation, adding content and images to the generator
-        presentation_url = await slides_generator.create_presentation(content_json, request.image_urls)
+        # Generate presentation, adding content and images to the generator only for summary slide - fo rest return the result
+        presentation_url = await slides_generator.create_presentation(content_json)
     
         if is_summary_slide:
             return {
@@ -80,12 +79,8 @@ async def get_llm_response(request: ContentRequest):
                 "presentation_url": presentation_url
             }   
         
-        # For non-summary slides, return the full result including presentation URL
-        return {
-            "content": content_json,
-            "images": request.image_urls,
-            "presentation_url": presentation_url
-        }
+        return json_result
+    
          
     except Exception as e:
         print(f"Error in get_llm_response: {str(e)}")  # Add this line for debugging
