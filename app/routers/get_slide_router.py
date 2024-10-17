@@ -38,57 +38,57 @@ llm = ChatOpenAI(
     # organization="...",
     # other params...
 )
-# Pydantic model for request body
+
+
+# Update the ContentRequest model
 class ContentRequest(BaseModel):
     subtopic: str
     text_content: List[str]
-    is_summary_slide: Optional[bool] = False  
-
+    is_summary_slide: Optional[bool] = False
+    image_urls: Optional[List[str]] = []  # Add this line
 
 # POST endpoint to process the content
 @router.post("/")
 async def get_llm_response(request: ContentRequest):
     try:
         formatted_content = "\n".join(f"- {line}" for line in request.text_content)
-        is_summary_slide=request.is_summary_slide;
+        is_summary_slide = request.is_summary_slide
       
-        prompt_text=prompts.create_slide_prompt2()
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", prompt_text)
-                ,
-                ("human", "content :{formatted_content} \n topic :{topic}"),
-            ]
-        )
+        prompt_text = prompts.create_slide_prompt2()
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", prompt_text),
+            ("human", "content :{formatted_content} \n topic :{topic}"),
+        ])
         
-        # This is just a placeholder for your actual logic
         chain = prompt | llm | StrOutputParser()
-        json_result= chain.invoke({
-            "formatted_content":formatted_content , "topic":request.subtopic
+        json_result = chain.invoke({
+            "formatted_content": formatted_content,
+            "topic": request.subtopic
         })
         print(json_result)
-        # # Call the create_presentation function from slides_generator
-        # presentation_url = await slides_generator.create_presentation(json.loads(json_result))
-
-        # # Output the presentation URL
-        # print(presentation_url)
-        # Return some dummy response
         
-        # Generate presentation, adding content to the generator
-        presentation_url = await slides_generator.create_presentation(json.loads(json_result))
+        # Parse the JSON result
+        content_json = json.loads(json_result)
+        
+        # Generate presentation, adding content and images to the generator
+        presentation_url = await slides_generator.create_presentation(content_json, request.image_urls)
     
         if is_summary_slide:
             return {
-            "content": json_result,
-            "images": [],  # May be empty if no files were uploaded
-            "presentation_url": presentation_url
+                "content": content_json,
+                "images": request.image_urls,
+                "presentation_url": presentation_url
             }   
- 
         
-        
-        return json_result
+        # For non-summary slides, return the full result including presentation URL
+        return {
+            "content": content_json,
+            "images": request.image_urls,
+            "presentation_url": presentation_url
+        }
          
     except Exception as e:
+        print(f"Error in get_llm_response: {str(e)}")  # Add this line for debugging
         raise HTTPException(status_code=500, detail=str(e))
 
 

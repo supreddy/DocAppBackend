@@ -1,74 +1,71 @@
-import os
-import asyncio
-from fastapi import APIRouter, HTTPException, File, UploadFile, Form
-from typing import List,Optional
+import logging
+from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Request
+from fastapi.responses import JSONResponse
+from typing import List, Optional, Union
+from pydantic import BaseModel
 from .get_slide_router import ContentRequest, get_llm_response
 from .upload_to_storage_router import upload_to_azure, update_or_insert_subtopic
-from pydantic import BaseModel
-from app.helper import slides_generator
-from app.helper import prompts
-import json
-router = APIRouter(
-    prefix="/get-slide-upload",
-    tags=["content"],
-    responses={404: {"description": "Not found"}},
-)
+import os
 
-# Pydantic model for the request body (for LLM)
- 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-@router.post("/")
+router = APIRouter(tags=["content"])
+
+class FormData(BaseModel):
+    subtopic_name: str
+    files: Optional[List[UploadFile]] = None
+    description: Optional[str] = None
+    text_content: List[str]
+
+@router.post("/get-slide-upload")
+@router.post("/get-slide-upload/")
 async def combined_api(
+    request: Request,
     subtopic_name: str = Form(...),
-    files: Optional[List[UploadFile]] = File(None),  # Make file upload optional
-    description: Optional[str] = Form(None),         # Description is also optional
-    text_content: List[str] = Form(...)
+    files: UploadFile = File(...),
+    description: Optional[str] = Form(None),
+    text_content: Union[str, List[str]] = Form(...)
 ):
     try:
+        logger.debug(f"Received request: {request.method} {request.url}")
+        logger.debug(f"Received subtopic_name: {subtopic_name}")
+        logger.debug(f"Received description: {description}")
+        logger.debug(f"Received file: {files.filename}")
+        logger.debug(f"Received text_content: {text_content}")
+        
+        # Ensure text_content is always a list
+        if isinstance(text_content, str):
+            text_content = [text_content]
+
         # Define the file paths folder
         files_folder = os.path.expanduser("~/slide-uploads")
         
-        # Task to generate slides
-        slide_task = generate_slides(text_content, subtopic_name)
+        # Upload file to Azure
+        upload_result = await upload_files_to_azure([files], files_folder, description, subtopic_name)
+        image_urls = upload_result['azure_blob_urls']
+        logger.debug(f"Uploaded image URLs: {image_urls}")
         
-        # Task to upload files, only if files are provided
-        if files:
-            upload_task = upload_files_to_azure(files, files_folder, description, subtopic_name)
-            content_result, upload_result = await asyncio.gather(slide_task, upload_task)
-        else:
-            content_result = await slide_task
-            upload_result = {"azure_blob_urls": []}  # No uploaded images if files are empty
+        # Generate slides with the image URLs
+        content_result = await generate_slides(text_content, subtopic_name, image_urls)
 
-        # Generate presentation, adding content to the generator
-        presentation_url = await slides_generator.create_presentation(json.loads(content_result))
-
-        # If upload_result['azure_blob_urls'] is needed in the presentation, pass them here
-
-        # Return the combined result with the presentation URL
-        return {
-            "content": content_result,
-            "images": upload_result['azure_blob_urls'],  # May be empty if no files were uploaded
-            "presentation_url": presentation_url
+        # Combine the results
+        combined_result = {
+            **content_result,
+            "uploaded_files": upload_result['uploaded_files'],
+            "azure_blob_urls": image_urls
         }
 
+        logger.debug(f"Combined result: {combined_result}")
+
+        return JSONResponse(content=combined_result)
+    
     except Exception as e:
+        logger.exception(f"Error processing request: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-async def generate_slides(text_content: List[str], subtopic_name: str):
-    """
-    Asynchronous function to generate slides by calling the LLM.
-    """
-    # Simulating the content preparation and LLM API call
-    formatted_content = "\n".join(f"- {line}" for line in text_content)
-    result = await get_llm_response(ContentRequest(subtopic=subtopic_name, text_content=text_content,isSummarySlide=False))
-    return result
-
-
 async def upload_files_to_azure(files: List[UploadFile], files_folder: str, description: str, subtopic_name: str):
-    """
-    Asynchronous function to upload files to Azure and update the database.
-    """
+    logger.debug(f"Uploading {len(files)} files for subtopic: {subtopic_name}")
     response = {
         "message": "Files uploaded and added to Azure successfully.",
         "uploaded_files": [],
@@ -76,21 +73,53 @@ async def upload_files_to_azure(files: List[UploadFile], files_folder: str, desc
         "description": description,
     }
 
-    # Upload files to Azure
+    if not files:
+        logger.debug("No files to upload")
+        return response
+
     for file in files:
+        logger.debug(f"Processing file: {file.filename}")
         file_path = os.path.join(files_folder, file.filename)
         os.makedirs(files_folder, exist_ok=True)
-        with open(file_path, "wb") as f:
-            f.write(file.file.read())
+        try:
+            with open(file_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+            logger.debug(f"File saved locally: {file_path}")
 
-        # Upload to Azure
-        blob_url = upload_to_azure(file_path, file.filename)
-        response["azure_blob_urls"].append(blob_url)
+            blob_url = upload_to_azure(file_path, file.filename)
+            response["azure_blob_urls"].append(blob_url)
+            response["uploaded_files"].append(file.filename)
+            logger.debug(f"Uploaded file {file.filename} to Azure: {blob_url}")
 
-        # Clean up local file
-        os.remove(file_path)
+            os.remove(file_path)
+            logger.debug(f"Removed local file: {file_path}")
+        except Exception as e:
+            logger.error(f"Error processing file {file.filename}: {str(e)}")
 
-    # Update the database with file URLs
     update_or_insert_subtopic(subtopic_name, response["azure_blob_urls"])
+    logger.debug(f"Updated subtopic {subtopic_name} with {len(response['azure_blob_urls'])} URLs")
 
     return response
+
+async def generate_slides(text_content: List[str], subtopic_name: str, image_urls: List[str]):
+    logger.debug(f"Generating slides for subtopic: {subtopic_name} with {len(image_urls)} images")
+    logger.debug(f"Image URLs for slide generation: {image_urls}")
+    
+    request = ContentRequest(
+        subtopic=subtopic_name,
+        text_content=text_content,
+        is_summary_slide=False,
+        image_urls=image_urls
+    )
+    
+    result = await get_llm_response(request)
+    
+    # Log a summary of the result
+    if isinstance(result, dict):
+        logger.debug(f"Slides generated. Content keys: {list(result.get('content', {}).keys())}")
+        logger.debug(f"Presentation URL: {result.get('presentation_url', 'Not available')}")
+    else:
+        logger.debug(f"Unexpected result type: {type(result)}")
+    
+    return result
