@@ -1,6 +1,7 @@
 import os
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+import json
 from typing import List, Dict, Any
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 SCOPES = ['https://www.googleapis.com/auth/presentations', 'https://www.googleapis.com/auth/drive']
-SERVICE_ACCOUNT_FILE = os.path.expanduser("~/DocAppBackend/app/helper/service_account.json")
+SERVICE_ACCOUNT_FILE = os.path.expanduser("./helper/service_account.json")
 
 # Configure the Google Slides API client
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
@@ -134,33 +135,49 @@ def create_text_box(slide_id: str, box_id: str, text: str, x: int, y: int, width
     
     return requests
 
-async def create_presentation(content_input: PresentationInput, image_urls: List[str] = None):
+async def create_presentation(content_input: Dict[str, Any], image_urls: List[str] = None):
     try:
-        content_input = PresentationInput(**content_input)
+        logger.debug(f"Received content_input: {json.dumps(content_input, indent=2)}")
+        logger.debug(f"Received image_urls: {image_urls}")
+
+        # Ensure content_input has the correct structure
+        if 'slides' not in content_input:
+            if 'content' in content_input and 'slides' in content_input['content']:
+                content_input = content_input['content']
+            else:
+                logger.error(f"Invalid content structure: {content_input}")
+                raise ValueError("Invalid content structure: 'slides' not found")
+
+        # Validate and convert the input
+        try:
+            presentation_data = PresentationInput(**content_input)
+        except ValidationError as ve:
+            logger.error(f"Validation error: {ve}")
+            raise HTTPException(status_code=422, detail=f"Invalid input data: {ve}")
 
         presentation = slides_service.presentations().create(body={}).execute()
         presentation_id = presentation['presentationId']
         logger.debug(f"Created presentation with ID: {presentation_id}")
-        # Get the title of the first slide
-        first_slide_title = content_input.slides[0].title
 
-        # Rename the presentation file in Google Drive based on the first slide's title
+        # Get the title of the first slide
+        first_slide_title = presentation_data.slides[0].title
+
+        # Rename the presentation file in Google Drive
         drive_service.files().update(
             fileId=presentation_id,
-            body={
-                'name': first_slide_title
-            }
+            body={'name': first_slide_title}
         ).execute()
+
         requests = []
         slide_data = []
 
         # Create title slide
-        title_slide_requests, title_slide_id, _, _ = create_slide_requests(content_input.slides[0], 0)
+        title_slide_requests, title_slide_id, _, _ = create_slide_requests(presentation_data.slides[0], 0)
         requests.extend(title_slide_requests)
-        slide_data.append((title_slide_id, content_input.slides[0].title, None, True))
+        slide_data.append((title_slide_id, presentation_data.slides[0].title, None, True))
 
         # Create content slides
-        for index, content_item in enumerate(content_input.slides[0].content, start=1):
+        for index, content_item in enumerate(presentation_data.slides[0].content, start=1):
             slide_requests, slide_id, _, _ = create_slide_requests(SlideContent(title=content_item['heading'], content=[content_item]), index)
             requests.extend(slide_requests)
             slide_data.append((slide_id, content_item['heading'], [content_item], False))
@@ -186,13 +203,13 @@ async def create_presentation(content_input: PresentationInput, image_urls: List
                 }
             })
 
-            # Add title box with dynamic size and position for multi-line titles
-            title_box_height = 80 if is_title_slide else 50  # Increase the title box height for multi-line titles
+            # Add title box
+            title_box_height = 80 if is_title_slide else 50
             content_requests.extend(create_text_box(slide_id, f'title_box_{index}', title, 20, 20, 720, title_box_height, 36, True))
 
             if not is_title_slide and content:
-                # Add bullet point content with adjusted line spacing (150%)
-                bullet_point_padding = 130  # Increase padding between title and bullet points
+                # Add bullet point content
+                bullet_point_padding = 130
                 content_text = "\n".join(point for item in content for point in item['bullet_points'])
                 content_requests.extend(create_text_box(slide_id, f'content_box_{index}', content_text, 40, bullet_point_padding, 660, 400, 18, add_bullets=True, line_spacing=150))
 

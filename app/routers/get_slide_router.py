@@ -1,6 +1,6 @@
 import json
 import os
-import webbrowser
+import logging
 from fastapi import APIRouter, HTTPException
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
@@ -12,8 +12,12 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.document_transformers import (
     LongContextReorder,
 )
-from app.helper import slides_generator
+from app.helper import slides_generator_alternate
 from config import PDF_FILES_FOLDER
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # code to get slide json
 # Define the directory where files are uploaded
@@ -64,30 +68,44 @@ async def get_llm_response(request: ContentRequest):
             "formatted_content": formatted_content,
             "topic": request.subtopic
         })
-        print(json_result)
+        
+        logger.debug(f"LLM Response: {json_result[:1000]}...")  # Log first 1000 characters
         
         # Parse the JSON result
-        content_json = json.loads(json_result)
+        try:
+            content_json = json.loads(json_result)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)}")
+            logger.error(f"Raw JSON content: {json_result}")
+            raise HTTPException(status_code=500, detail=f"Error parsing LLM response: {str(e)}")
         
-        # Generate presentation, adding content and images to the generator only for summary slide - fo rest return the result
-        presentation_url = await slides_generator.create_presentation(content_json)
-    
+        logger.debug(f"Parsed content_json: {content_json}")
+
+        # Ensure the content has the correct structure
+        if 'slides' not in content_json:
+            logger.error(f"Invalid content structure: {content_json}")
+            raise HTTPException(status_code=500, detail="Invalid content structure: 'slides' not found")
+
+        # Generate presentation URL only for summary slide
+        presentation_url = None
         if is_summary_slide:
-            return {
-                "content": content_json,
-                "images": request.image_urls,
-                "presentation_url": presentation_url
-            }   
+            presentation_url = await slides_generator_alternate.create_presentation(content_json, request.image_urls or [])
         
-        return json_result
+        result = {
+            "content": content_json,
+            "images": request.image_urls if hasattr(request, 'image_urls') else [],
+            "presentation_url": presentation_url
+        }
+        
+        logger.debug(f"Final result: {result}")
+        return result
     
-         
+    except HTTPException as he:
+        logger.error(f"HTTP Exception in get_llm_response: {he.detail}")
+        raise
     except Exception as e:
-        print(f"Error in get_llm_response: {str(e)}")  # Add this line for debugging
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-
+        logger.exception(f"Unexpected error in get_llm_response: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
  
   
