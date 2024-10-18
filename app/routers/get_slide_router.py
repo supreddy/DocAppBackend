@@ -16,7 +16,7 @@ from app.helper import slides_generator_alternate
 from config import PDF_FILES_FOLDER
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 # code to get slide json
@@ -50,7 +50,7 @@ class ContentRequest(BaseModel):
     text_content: List[str]
     is_summary_slide: Optional[bool] = False
 
-# POST endpoint to process the content
+# POST endpoint to process the content onlu used for summary slide - elseused as method frm the get_slides_upload router
 @router.post("/")
 async def get_llm_response(request: ContentRequest):
     try:
@@ -64,19 +64,19 @@ async def get_llm_response(request: ContentRequest):
         ])
         
         chain = prompt | llm | StrOutputParser()
-        json_result = chain.invoke({
+        llm_str_result = chain.invoke({
             "formatted_content": formatted_content,
             "topic": request.subtopic
         })
         
-        logger.debug(f"LLM Response: {json_result[:1000]}...")  # Log first 1000 characters
+        logger.debug(f"LLM Response: {llm_str_result[:1000]}...")  # Log first 1000 characters
         
         # Parse the JSON result
         try:
-            content_json = json.loads(json_result)
+            content_json = json.loads(llm_str_result)
         except json.JSONDecodeError as e:
             logger.error(f"JSON parsing error: {str(e)}")
-            logger.error(f"Raw JSON content: {json_result}")
+            logger.error(f"Raw JSON str content: {llm_str_result}")
             raise HTTPException(status_code=500, detail=f"Error parsing LLM response: {str(e)}")
         
         logger.debug(f"Parsed content_json: {content_json}")
@@ -88,17 +88,19 @@ async def get_llm_response(request: ContentRequest):
 
         # Generate presentation URL only for summary slide
         presentation_url = None
-        if is_summary_slide:
+        if is_summary_slide: # if summary slide only return content+ppt url - there will be no images in the summary 
             presentation_url = await slides_generator_alternate.create_presentation(content_json, request.image_urls or [])
+            result = {
+                "content": content_json,
+                "images": request.image_urls if hasattr(request, 'image_urls') else [],
+                "presentation_url": presentation_url
+            }
+            return result #this is an api response   
         
-        result = {
-            "content": content_json,
-            "images": request.image_urls if hasattr(request, 'image_urls') else [],
-            "presentation_url": presentation_url
-        }
         
-        logger.debug(f"Final result: {result}")
-        return result
+        # logger.debug(f"Final result: {result}")
+        # if not summary slide only return the content Json 
+        return content_json #this is an method return value 
     
     except HTTPException as he:
         logger.error(f"HTTP Exception in get_llm_response: {he.detail}")

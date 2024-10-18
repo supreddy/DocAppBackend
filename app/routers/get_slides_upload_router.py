@@ -53,8 +53,8 @@ async def combined_api(
         # Define the file paths folder
         files_folder = os.path.expanduser("~/slide-uploads")
 
-        # Task to generate slides
-        slide_task = generate_slides(text_content_list, subtopic_name)
+        # Task to generate the overall json for content of different kinds
+        content_task = generate_content(text_content_list, subtopic_name)
 
         # Initialize empty result for uploaded files
         upload_result = {"azure_blob_urls": []}
@@ -62,19 +62,19 @@ async def combined_api(
         # Task to handle file uploads, image URLs, or both
         if files_list or image_urls_list:
             upload_task = handle_file_and_url_uploads(files_list, image_urls_list, files_folder, description, subtopic_name)
-            content_result, upload_result = await asyncio.gather(slide_task, upload_task)
+            content_json, upload_result = await asyncio.gather(content_task, upload_task)
         else:
-            content_result = await slide_task
+            content_json = await content_task
 
         # Generate presentation, adding content to the generator
-        try:
-            content_json = json.loads(content_result) if isinstance(content_result, str) else content_result
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse content_result as JSON: {content_result}")
-            raise HTTPException(status_code=500, detail="Failed to parse slide content")
+        # try:
+        #     content_json = json.loads(content_result)  
+        # except json.JSONDecodeError:
+        #     logger.error(f"Failed to parse content_result as JSON: {content_result}")
+        #     raise HTTPException(status_code=500, detail="Failed to parse slide content")
 
-        presentation_url = await slides_generator_alternate.create_presentation(content_input=content_json, image_urls=image_urls_list)
 
+        presentation_url = await slides_generator_alternate.create_presentation(content_input=content_json, image_urls= upload_result['azure_blob_urls'])
         # Return the combined result with the presentation URL
         result = {
             "content": content_json,
@@ -94,7 +94,7 @@ async def combined_api(
 
 
 
-async def generate_slides(text_content: List[str], subtopic_name: str):
+async def generate_content(text_content: List[str], subtopic_name: str):
     """
     Asynchronous function to generate slides by calling the LLM.
     """
