@@ -1,4 +1,5 @@
 import os
+import re
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from typing import List
 from azure.storage.blob import BlobServiceClient
@@ -75,6 +76,11 @@ async def upload_files(
 
     return response
 
+# Define a function similar to the JavaScript version to extract the file name
+def get_file_name(url):
+    match = re.search(r'[^/]*\.(\w+)($|\?)', url)
+    return match.group(0).split('?')[0] if match else None
+
 def upload_to_azure(filepath: str, filename: str):
     """
     Upload a file to Azure Blob Storage.
@@ -84,7 +90,7 @@ def upload_to_azure(filepath: str, filename: str):
     :return: The URL of the uploaded blob.
     """
     container_client = blob_service_client.get_container_client(container_name)
-
+    filename =get_file_name(filename)
     try:
         with open(filepath, "rb") as data:
             blob_client = container_client.upload_blob(name=filename, data=data, overwrite=True)
