@@ -3,7 +3,7 @@ from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from typing import List
 import fitz
 
-from app.routers.get_LLM_result import process_files_with_instruction  # PyMuPDF
+from routers.get_LLM_result import process_files_with_instruction  # PyMuPDF
 
 # Assuming process_files_with_instruction and extract_text_from_pdf are already defined
 

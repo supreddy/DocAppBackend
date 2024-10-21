@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, File, Request, UploadFile, Form
 from typing import List, Optional, Union
 from .get_slide_router import ContentRequest, get_llm_response
 from .upload_to_storage_router import upload_to_azure, update_or_insert_subtopic
-from app.helper import slides_generator_alternate
+from helper import slides_generator_alternate
 import json
 
 router = APIRouter(

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Form, HTTPException
 from typing import List
 
 from fastapi.responses import JSONResponse
-from app.routers.get_LLM_result import process_files_with_instruction
+from routers.get_LLM_result import process_files_with_instruction
 
 # Initialize the router
 router = APIRouter(

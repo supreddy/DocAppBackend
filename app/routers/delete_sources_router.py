@@ -4,7 +4,7 @@ from fastapi import FastAPI, APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
 from typing import List
 
-from app.routers.post_sources_router import SourcesInput
+from routers.post_sources_router import SourcesInput
 
 
 

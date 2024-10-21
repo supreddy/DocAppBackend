@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List
 
 # Assuming these models are imported from another module
-from app.routers.post_sources_router import SourceSchemaOutput, SourcesInput, SourcesOutput
+from routers.post_sources_router import SourceSchemaOutput, SourcesInput, SourcesOutput
 
 # Initialize the router with your specified configuration
 router = APIRouter(

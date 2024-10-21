@@ -6,7 +6,7 @@ from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 import shutil
 from config import PDF_FILES_FOLDER ,ACCOUNT_URL 
-from app.indexers.db_handler import init_db, update_or_insert_subtopic  # Import the modularized SQL functions
+from indexers.db_handler import init_db, update_or_insert_subtopic  # Import the modularized SQL functions
 
 # Load environment variables for Azure
 load_dotenv()

@@ -4,12 +4,12 @@ import fitz  # PyMuPDF
 import json
 import re
 import os
-from app.indexers.file_processor_with_indexing import process_text_and_index  # Importing the indexing function
+from indexers.file_processor_with_indexing import process_text_and_index  # Importing the indexing function
 from pydantic import BaseModel
 from typing import List, Optional, Union
 
-from app.indexers.file_processor_with_indexing import process_text_and_index
-from app.indexers.update_indexed_files import add_or_update_file, get_all_files, init_db
+from indexers.file_processor_with_indexing import process_text_and_index
+from indexers.update_indexed_files import add_or_update_file, get_all_files, init_db
 
  
 
