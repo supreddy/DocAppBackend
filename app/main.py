@@ -2,12 +2,12 @@ import json
 from fastapi import FastAPI, Request, WebSocket 
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.routers import scrape_router, post_sources_router,message_router 
-from app.routers import get_sources_router,index_rooks_router,toc_router, delete_sources_router,delete_Id_VS_router,get_slide_router, upload_router, files_router,extract_text_router
-from app.routers import upload_to_storage_router,augment_subtopic_router,streaming_extract_text_router,get_slides_upload_router,augment_subtopic_router
-from app.routers import describe_image_router,fetch_image_router
+from routers import scrape_router, post_sources_router,message_router 
+from routers import get_sources_router,index_rooks_router,toc_router, delete_sources_router,delete_Id_VS_router,get_slide_router, upload_router, files_router,extract_text_router
+from routers import upload_to_storage_router,augment_subtopic_router,streaming_extract_text_router,get_slides_upload_router,augment_subtopic_router
+from routers import describe_image_router,fetch_image_router
 from db import chroma_setup
-from app.helper.websocket_connections import active_websockets
+from helper.websocket_connections import active_websockets
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware

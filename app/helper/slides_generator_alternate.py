@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 SCOPES = ['https://www.googleapis.com/auth/presentations', 'https://www.googleapis.com/auth/drive']
-# SERVICE_ACCOUNT_FILE = os.path.expanduser("./helper/service_account.json")
-SERVICE_ACCOUNT_FILE = os.path.expanduser("~/DocAppBackend/app/helper/service_account.json")
+SERVICE_ACCOUNT_FILE = os.path.expanduser("./helper/service_account.json")
+#SERVICE_ACCOUNT_FILE = os.path.expanduser("~/DocAppBackend/app/helper/service_account.json")
 
 # Configure the Google Slides API client
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
