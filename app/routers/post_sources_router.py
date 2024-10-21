@@ -3,7 +3,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, WebSocket
 from pydantic import BaseModel, HttpUrl
 from typing import List
 
-from app.indexers.file_processor_with_indexing import process_text_and_index
+from indexers.file_processor_with_indexing import process_text_and_index
 
 # Initialize the router with your specified configuration
 router = APIRouter(
