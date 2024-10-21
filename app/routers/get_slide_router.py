@@ -12,7 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.document_transformers import (
     LongContextReorder,
 )
-from app.helper import slides_generator_alternate
+from helper import slides_generator_alternate
 from config import PDF_FILES_FOLDER
 
 # Set up logging
